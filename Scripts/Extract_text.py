@@ -1,24 +1,25 @@
 import pdfplumber
 
-print("Script started...")
+print("Starting PDF extraction...")
 
-pdf_path = "data/Law_pdf/Code_Travail_fr.pdf"
+pdf_path = "Data/Law_pdf/Code_Travail_fr.pdf"
 
-try:
-    with pdfplumber.open(pdf_path) as pdf:
-        print("PDF opened successfully")
-        print("Number of pages:", len(pdf.pages))
+full_text = ""
 
-        full_text = ""
+with pdfplumber.open(pdf_path) as pdf:
+    total_pages = len(pdf.pages)
+    print(f"Total pages detected: {total_pages}")
 
-        for i, page in enumerate(pdf.pages, start=1):
-            text = page.extract_text()
-            if text:
-                full_text += text + "\n"
+    for page_number, page in enumerate(pdf.pages, start=1):
+        text = page.extract_text()
+        if text:
+            full_text += text + "\n"
 
-        print("Characters extracted:", len(full_text))
-        print("\n--- SAMPLE TEXT ---\n")
-        print(full_text[:10000000000])
+        
+        print(f"Page {page_number}/{total_pages} extracted")
 
-except Exception as e:
-    print("ERROR:", e)
+print("Extraction finished")
+print("Total characters extracted:", len(full_text))
+
+with open("data/full_law.txt", "w", encoding="utf-8") as f:
+    f.write(full_text)
