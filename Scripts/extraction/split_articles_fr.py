@@ -2,7 +2,7 @@ import re
 import json
 
 
-with open("Data/json/full_law.txt", "r", encoding="utf-8") as f:
+with open("../../Data/json/full_law.txt", "r", encoding="utf-8") as f:
     text = f.read()
 
 # Define the article pattern
@@ -23,7 +23,7 @@ for i in range(1, len(parts), 2):
     articles[article_number] = article_text
 
 # Save result
-with open("Data/articles_raw.json", "w", encoding="utf-8") as f:
+with open("../../Data/json/articles_raw.json", "w", encoding="utf-8") as f:
     json.dump(articles, f, ensure_ascii=False, indent=2)
 
 print(f"{len(articles)} articles detected and saved.")
