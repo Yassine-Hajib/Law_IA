@@ -2,7 +2,7 @@ import re
 import json
 
 
-with open("Data/full_law.txt", "r", encoding="utf-8") as f:
+with open("Data/json/full_law.txt", "r", encoding="utf-8") as f:
     text = f.read()
 
 # Define the article pattern

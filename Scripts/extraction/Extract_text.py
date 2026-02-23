@@ -15,7 +15,6 @@ with pdfplumber.open(pdf_path) as pdf:
         if text:
             full_text += text + "\n"
 
-        
         print(f"Page {page_number}/{total_pages} extracted")
 
 print("Extraction finished")
