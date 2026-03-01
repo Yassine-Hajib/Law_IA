@@ -5,22 +5,21 @@ from sentence_transformers import SentenceTransformer, CrossEncoder
 
 model = SentenceTransformer("BAAI/bge-small-en")
 
-
+    # Connecting To The DataBase 
 client = chromadb.PersistentClient(path="../embeeding/chroma_db")
 collection = client.get_collection("law_articles")
-
 
 query = "licenciement et droits du salarié après rupture du contrat"
 query = query.strip().lower()
 
-
+    # If The Question is to short 
 if len(query.split()) < 5:
     query = f"droits du salarié en droit du travail marocain concernant : {query}"
 
-
+    # Converts the question into a vector 
 query_embedding = model.encode(query).tolist()
 
-
+    # Top 8 vector  in chroma related to the question 
 results = collection.query(
     query_embeddings=[query_embedding],
     n_results=8
@@ -28,7 +27,7 @@ results = collection.query(
 
 documents = results["documents"][0]
 
-print("\nTop documents from Chroma:\n")
+print("\n Top documents from Chroma:\n")
 for doc in documents:
     print("-", doc[:150], "...\n")
 
@@ -36,13 +35,12 @@ for doc in documents:
 # Re-ranking with Cross-Encoder
 
 cross_encoder = CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2")
-
 pairs = [(query, doc) for doc in documents]
 scores = cross_encoder.predict(pairs)
-
 ranked = sorted(zip(documents, scores), key=lambda x: x[1], reverse=True)
 
 # Keep top 3 after reranking
+
 top_docs = [doc for doc, score in ranked[:3]]
 
 

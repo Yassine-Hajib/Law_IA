@@ -1,4 +1,5 @@
 import json
+
 from sentence_transformers import SentenceTransformer
 import chromadb
 
@@ -16,7 +17,7 @@ collection = client.get_or_create_collection(name="law_articles")
 for item in data:
     # Make sure the keys exist
     article_id = item.get("article_id")
-    text = item.get("text")
+    text = item.get("text") 
     if not article_id or not text:
         continue  # skip invalid entries
 
