@@ -3,6 +3,8 @@ import requests
 from sentence_transformers import SentenceTransformer, CrossEncoder
 
 
+# Load embedding model (Bi-Encoder)
+
 model = SentenceTransformer("BAAI/bge-small-en")
 
 
@@ -10,20 +12,26 @@ client = chromadb.PersistentClient(path="../embeeding/chroma_db")
 collection = client.get_collection("law_articles")
 
 
+# User Query
+
 query = "licenciement et droits du salarié après rupture du contrat"
 query = query.strip().lower()
 
-
+# Improve vague queries automatically
 if len(query.split()) < 5:
     query = f"droits du salarié en droit du travail marocain concernant : {query}"
 
 
+# Convert question to embedding
+
 query_embedding = model.encode(query).tolist()
 
 
+# Retrieve Top 5
+
 results = collection.query(
     query_embeddings=[query_embedding],
-    n_results=8
+    n_results=5   # reduced for speed
 )
 
 documents = results["documents"][0]
@@ -42,49 +50,62 @@ scores = cross_encoder.predict(pairs)
 
 ranked = sorted(zip(documents, scores), key=lambda x: x[1], reverse=True)
 
-# Keep top 3 after reranking
-top_docs = [doc for doc, score in ranked[:3]]
+# Keep top 2 only (faster prompt)
+top_docs = [doc for doc, score in ranked[:2]]
 
+
+# Build context
 
 context = "\n\n".join(
     [f"Article {i+1}:\n{doc}" for i, doc in enumerate(top_docs)]
 )
 
 
+# Build optimized prompt
+
 prompt = f"""
 Tu es un assistant juridique spécialisé en droit du travail marocain.
 
-Règles importantes :
-- Réponds uniquement en utilisant les informations fournies dans le contexte.
-- Ne rajoute aucune information externe.
-- Cite les articles mentionnés si possible.
-- Structure la réponse clairement.
-- Si l'information n'existe pas dans le contexte, dis : "Cette information n'est pas précisée dans les articles fournis."
+Instructions strictes:
+- Organise la réponse en sections claires.
+- Utilise une numérotation correcte (1, 2, 3).
+- Ne répète aucune information.
+- Cite les articles explicitement.
+- Utilise uniquement les informations du contexte.
+- Si l'information n'existe pas dans le contexte, réponds uniquement:
+"Non précisé dans les articles fournis."
+- Ne répète jamais que l'information est précisée.
+- Ne reformule pas les instructions.
 
-Contexte juridique :
+Contexte:
 {context}
 
-Question :
+Question:
 {query}
 
-Réponse détaillée :
+Réponse structurée:
 """
 
 
-# Call Ollama (Mistral)
+# Call Ollama (FAST VERSION)
 
-print("\n Génération de la réponse par Mistral...\n")
+print("\nGénération rapide avec Mistral...\n")
 
 response = requests.post(
     "http://localhost:11434/api/generate",
     json={
-        "model": "mistral",
+        "model": "mistral:7b-instruct-q4_K_M",   # faster model
         "prompt": prompt,
-        "stream": False
+        "stream": False,
+        "options": {
+            "num_predict": 450,     # limit output length
+            "temperature": 0.1 ,
+            "top_p": 0.9   # more factual
+        }
     }
 )
 
 result = response.json()
 
-print("\nRéponse finale générée par le LLM:\n")
+print("\nRéponse finale:\n")
 print(result["response"])
