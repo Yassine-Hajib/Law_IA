@@ -1,31 +1,25 @@
 import chromadb
-import ollama
+import requests
 from sentence_transformers import SentenceTransformer, CrossEncoder
 
 
-# Load embedding model
-
 model = SentenceTransformer("BAAI/bge-small-en")
 
-
-# Load ChromaDB
 
 client = chromadb.PersistentClient(path="../embeeding/chroma_db")
 collection = client.get_collection("law_articles")
 
 
-# User query
-
 query = "licenciement et droits du salarié après rupture du contrat"
 query = query.strip().lower()
 
 
-# Convert question to embedding
+if len(query.split()) < 5:
+    query = f"droits du salarié en droit du travail marocain concernant : {query}"
+
 
 query_embedding = model.encode(query).tolist()
 
-
-# Retrieve Top 8 documents
 
 results = collection.query(
     query_embeddings=[query_embedding],
@@ -48,39 +42,49 @@ scores = cross_encoder.predict(pairs)
 
 ranked = sorted(zip(documents, scores), key=lambda x: x[1], reverse=True)
 
-print("\nTop article after re-ranking:\n")
-print(ranked[0][0])
+# Keep top 3 after reranking
+top_docs = [doc for doc, score in ranked[:3]]
 
 
-# RAG PART (LLM CONNECTION)
+context = "\n\n".join(
+    [f"Article {i+1}:\n{doc}" for i, doc in enumerate(top_docs)]
+)
 
-
-# Take top 3 for better context
-top_articles = [doc for doc, score in ranked[:3]]
-context = "\n\n".join(top_articles)
 
 prompt = f"""
 Tu es un assistant juridique spécialisé en droit du travail marocain.
 
-Réponds uniquement en te basant sur les articles suivants du Code du Travail marocain.
+Règles importantes :
+- Réponds uniquement en utilisant les informations fournies dans le contexte.
+- Ne rajoute aucune information externe.
+- Cite les articles mentionnés si possible.
+- Structure la réponse clairement.
+- Si l'information n'existe pas dans le contexte, dis : "Cette information n'est pas précisée dans les articles fournis."
 
-ARTICLES:
+Contexte juridique :
 {context}
 
-QUESTION:
+Question :
 {query}
 
-Donne une réponse claire, structurée et professionnelle.
+Réponse détaillée :
 """
 
-print("\n\n Génération de la réponse par Mistral...\n")
 
-response = ollama.chat(
-    model="mistral",
-    messages=[
-        {"role": "user", "content": prompt}
-    ]
+# Call Ollama (Mistral)
+
+print("\n Génération de la réponse par Mistral...\n")
+
+response = requests.post(
+    "http://localhost:11434/api/generate",
+    json={
+        "model": "mistral",
+        "prompt": prompt,
+        "stream": False
+    }
 )
 
-print("\n Réponse finale générée par le LLM:\n")
-print(response["message"]["content"])
+result = response.json()
+
+print("\nRéponse finale générée par le LLM:\n")
+print(result["response"])
