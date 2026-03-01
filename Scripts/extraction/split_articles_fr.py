@@ -2,7 +2,7 @@ import re        #Reegex
 import json
 
 
-with open("Data/json/full_law.txt", "r", encoding="utf-8") as f:
+with open("../../Data/json/full_law.txt", "r", encoding="utf-8") as f:
     text = f.read()
 
 # Define the article pattern
@@ -23,7 +23,11 @@ for i in range(1, len(parts), 2):
     articles[article_number] = article_text
 
 # Save result
+<<<<<<< HEAD
 with open("Data/json/articles_raw.json", "w", encoding="utf-8") as f:
+=======
+with open("../../Data/json/articles_raw.json", "w", encoding="utf-8") as f:
+>>>>>>> d8c8a79cc25a0a50405204afe1c7f45ffa462542
     json.dump(articles, f, ensure_ascii=False, indent=2)
 
 print(f"{len(articles)} articles detected and saved.")

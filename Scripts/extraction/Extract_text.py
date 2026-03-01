@@ -2,7 +2,7 @@ import pdfplumber
 
 print("Starting PDF extraction")
 
-pdf_path = "Data/Law_pdf/Code_Travail_fr.pdf"
+pdf_path = "../../Data/Law_pdf/Code_Travail_fr.pdf"
 
 full_text = ""
 
@@ -20,5 +20,5 @@ with pdfplumber.open(pdf_path) as pdf:
 print("Extraction finished")
 print("Total characters extracted:", len(full_text))
 
-with open("data/json/full_law.txt", "w", encoding="utf-8") as f:
+with open("data/full_law.txt", "w", encoding="utf-8") as f:
     f.write(full_text)
