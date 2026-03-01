@@ -12,13 +12,13 @@ with pdfplumber.open(pdf_path) as pdf:
 
     for page_number, page in enumerate(pdf.pages, start=1):
         text = page.extract_text()
-        if text:
-            full_text += text + "\n"
+        if text:        # Onlyy Pge Withh Txt
+            full_text += text + "\n" 
 
         print(f"Page {page_number}/{total_pages} extracted")
 
 print("Extraction finished")
 print("Total characters extracted:", len(full_text))
 
-with open("data/full_law.txt", "w", encoding="utf-8") as f:
+with open("data/json/full_law.txt", "w", encoding="utf-8") as f:
     f.write(full_text)
