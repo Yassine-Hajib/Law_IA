@@ -80,25 +80,21 @@ if st.button("Rechercher") and query:
             )
             
             # Préparation du prompt pour le LLM
-            prompt = f"""
-            Tu es un assistant juridique spécialisé en droit du travail marocain.
-            
-            Règles importantes :
-            - Si la Question est une suite de lettres sans signification (ex: 'jkzkjfndzjkldlz', 'jdejdhe') ou n'a aucun sens, tu DOIS répondre UNIQUEMENT par : "Veuillez poser une question claire et pertinente." et ignorer le reste.
-            - Sinon, réponds uniquement en utilisant les informations fournies dans le contexte.
-            - Ne rajoute aucune information externe.
-            - Cite les articles mentionnés si possible.
-            - Structure la réponse clairement.
-            - Si l'information n'existe pas dans le contexte, dis : "Cette information n'est pas précisée dans les articles fournis."
-            
-            Contexte juridique :
-            {context}
-            
-            Question :
-            {query}
-            
-            Réponse détaillée :
-            """
+            system_prompt = """Tu es un assistant juridique strict et professionnel, expert en droit du travail marocain.
+Ton SEUL ET UNIQUE but est de répondre aux questions sur le droit du travail marocain en utilisant EXCLUSIVEMENT le contexte fourni.
+
+RÈGLES STRICTES ET OBLIGATOIRES (Ne les enfreins sous aucun prétexte) :
+1. Si la question n'a AUCUN rapport avec le droit du travail (ex: "bonjour", "comment ça va", "quel est ton nom", "je m'appelle X", "qui est le président"), tu DOIS répondre EXACTEMENT et UNIQUEMENT : "Veuillez poser une question claire et pertinente en rapport avec le droit du travail marocain." Ne dis rien d'autre.
+2. Si la question est une suite de lettres incompréhensible ou du bruit (ex: "jkzkjf", "93022", "hjkjjkdf"), tu DOIS répondre EXACTEMENT et UNIQUEMENT : "Veuillez poser une question claire et pertinente en rapport avec le droit du travail marocain."
+3. Ne réponds JAMAIS aux questions hors sujet, même pour être poli.
+4. Si la question est pertinente au droit du travail mais que le contexte fourni ne contient pas la réponse, réponds UNIQUEMENT : "Cette information n'est pas précisée dans les textes de loi fournis."
+5. Si la réponse est dans le contexte, donne une réponse claire, complète et cite toujours les articles mentionnés."""
+
+            user_prompt = f"""Contexte juridique (Ne réponds qu'à partir de ceci) :
+{context}
+
+Question de l'utilisateur :
+{query}"""
             
         except Exception as e:
             st.error(f"Erreur lors de la recherche dans la base de données : {e}")
@@ -106,14 +102,17 @@ if st.button("Rechercher") and query:
             
     with st.spinner("Génération de la réponse par l'IA..."):
         try:
-            # 3. Génération (Mistral via Ollama)
+            # 3. Génération (LLama 3 via Ollama API Chat)
             import json
             response = requests.post(
-                "http://localhost:11434/api/generate",
+                "http://localhost:11434/api/chat",
                 json={
-                    "model": "llama3.2:1b", # Modèle 4 fois plus léger et ultra-rapide
-                    "prompt": prompt,
-                    "stream": True
+                    "model": "llama3.2:1b",
+                    "messages": [
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt}
+                    ],
+                    "stream": True # On garde le streaming pour la vitesse
                 },
                 stream=True
             )
@@ -126,8 +125,8 @@ if st.button("Rechercher") and query:
                 for line in response.iter_lines():
                     if line:
                         chunk = json.loads(line)
-                        if "response" in chunk:
-                            full_response += chunk["response"]
+                        if "message" in chunk and "content" in chunk["message"]:
+                            full_response += chunk["message"]["content"]
                             response_placeholder.markdown(full_response + "▌")
                 
                 response_placeholder.markdown(full_response)
