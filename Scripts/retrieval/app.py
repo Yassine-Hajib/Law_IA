@@ -16,8 +16,13 @@ st.markdown("Posez vos questions sur le Code du Travail marocain, et je vous ré
 @st.cache_resource
 def load_models():
     """Charge les modèles (SentenceTransformer et CrossEncoder)."""
-    model = SentenceTransformer("BAAI/bge-small-en")
-    cross_encoder = CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2")
+    import torch
+    
+    # Utilisation de l'accélération matérielle Apple Silicon (MPS) si disponible
+    device = "mps" if torch.backends.mps.is_available() else "cpu"
+    
+    model = SentenceTransformer("BAAI/bge-small-en", device=device)
+    cross_encoder = CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2", device=device)
     return model, cross_encoder
 
 import os
@@ -102,22 +107,33 @@ if st.button("Rechercher") and query:
     with st.spinner("Génération de la réponse par l'IA..."):
         try:
             # 3. Génération (Mistral via Ollama)
+            import json
             response = requests.post(
                 "http://localhost:11434/api/generate",
                 json={
-                    "model": "mistral",
+                    "model": "llama3.2:1b", # Modèle 4 fois plus léger et ultra-rapide
                     "prompt": prompt,
-                    "stream": False
-                }
+                    "stream": True
+                },
+                stream=True
             )
             
             if response.status_code == 200:
-                result = response.json()
-                st.success("Réponse prête :")
-                st.write(result["response"])
+                st.success("Génération de la réponse en cours :")
+                response_placeholder = st.empty()
+                full_response = ""
+                
+                for line in response.iter_lines():
+                    if line:
+                        chunk = json.loads(line)
+                        if "response" in chunk:
+                            full_response += chunk["response"]
+                            response_placeholder.markdown(full_response + "▌")
+                
+                response_placeholder.markdown(full_response)
                 
                 # Affichage des sources seulement si la question est pertinente
-                if "Veuillez poser une question claire" not in result["response"]:
+                if "Veuillez poser une question claire" not in full_response:
                     with st.expander("Voir les articles de loi utilisés (Sources)"):
                         for i, doc in enumerate(top_docs):
                             st.markdown(f"**Source {i+1} :**")
