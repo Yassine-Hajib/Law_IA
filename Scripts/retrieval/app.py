@@ -79,7 +79,8 @@ if st.button("Rechercher") and query:
             Tu es un assistant juridique spécialisé en droit du travail marocain.
             
             Règles importantes :
-            - Réponds uniquement en utilisant les informations fournies dans le contexte.
+            - Si la Question est une suite de lettres sans signification (ex: 'jkzkjfndzjkldlz', 'jdejdhe') ou n'a aucun sens, tu DOIS répondre UNIQUEMENT par : "Veuillez poser une question claire et pertinente." et ignorer le reste.
+            - Sinon, réponds uniquement en utilisant les informations fournies dans le contexte.
             - Ne rajoute aucune information externe.
             - Cite les articles mentionnés si possible.
             - Structure la réponse clairement.
@@ -115,11 +116,12 @@ if st.button("Rechercher") and query:
                 st.success("Réponse prête :")
                 st.write(result["response"])
                 
-                # Affichage des sources
-                with st.expander("Voir les articles de loi utilisés (Sources)"):
-                    for i, doc in enumerate(top_docs):
-                        st.markdown(f"**Source {i+1} :**")
-                        st.info(doc)
+                # Affichage des sources seulement si la question est pertinente
+                if "Veuillez poser une question claire" not in result["response"]:
+                    with st.expander("Voir les articles de loi utilisés (Sources)"):
+                        for i, doc in enumerate(top_docs):
+                            st.markdown(f"**Source {i+1} :**")
+                            st.info(doc)
             else:
                 st.error(f"Erreur de l'API Ollama (Code {response.status_code})")
                 st.write(response.text)
