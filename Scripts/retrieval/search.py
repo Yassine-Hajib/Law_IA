@@ -3,6 +3,8 @@ import requests
 from sentence_transformers import SentenceTransformer, CrossEncoder
 
 
+# Load embedding model (Bi-Encoder)
+
 model = SentenceTransformer("BAAI/bge-small-en")
 
     # Connecting To The DataBase 
@@ -22,7 +24,7 @@ query_embedding = model.encode(query).tolist()
     # Top 8 vector  in chroma related to the question 
 results = collection.query(
     query_embeddings=[query_embedding],
-    n_results=8
+    n_results=5   # reduced for speed
 )
 
 documents = results["documents"][0]
@@ -44,45 +46,58 @@ ranked = sorted(zip(documents, scores), key=lambda x: x[1], reverse=True)
 top_docs = [doc for doc, score in ranked[:3]]
 
 
+# Build context
+
 context = "\n\n".join(
     [f"Article {i+1}:\n{doc}" for i, doc in enumerate(top_docs)]
 )
 
 
+# Build optimized prompt
+
 prompt = f"""
 Tu es un assistant juridique spécialisé en droit du travail marocain.
 
-Règles importantes :
-- Réponds uniquement en utilisant les informations fournies dans le contexte.
-- Ne rajoute aucune information externe.
-- Cite les articles mentionnés si possible.
-- Structure la réponse clairement.
-- Si l'information n'existe pas dans le contexte, dis : "Cette information n'est pas précisée dans les articles fournis."
+Instructions strictes:
+- Organise la réponse en sections claires.
+- Utilise une numérotation correcte (1, 2, 3).
+- Ne répète aucune information.
+- Cite les articles explicitement.
+- Utilise uniquement les informations du contexte.
+- Si l'information n'existe pas dans le contexte, réponds uniquement:
+"Non précisé dans les articles fournis."
+- Ne répète jamais que l'information est précisée.
+- Ne reformule pas les instructions.
 
-Contexte juridique :
+Contexte:
 {context}
 
-Question :
+Question:
 {query}
 
-Réponse détaillée :
+Réponse structurée:
 """
 
 
-# Call Ollama (Mistral)
+# Call Ollama (FAST VERSION)
 
-print("\n Génération de la réponse par Mistral...\n")
+print("\nGénération rapide avec Mistral...\n")
 
 response = requests.post(
     "http://localhost:11434/api/generate",
     json={
-        "model": "mistral",
+        "model": "mistral:7b-instruct-q4_K_M",   # faster model
         "prompt": prompt,
-        "stream": False
+        "stream": False,
+        "options": {
+            "num_predict": 450,     # limit output length
+            "temperature": 0.1 ,
+            "top_p": 0.9   # more factual
+        }
     }
 )
 
 result = response.json()
 
-print("\nRéponse finale générée par le LLM:\n")
+print("\nRéponse finale:\n")
 print(result["response"])
