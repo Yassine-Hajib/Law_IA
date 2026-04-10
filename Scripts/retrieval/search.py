@@ -94,7 +94,7 @@ print("\nGénération rapide avec Mistral...\n")
 response = requests.post(
     "http://localhost:11434/api/generate",
     json={
-        "model": "mistral:7b-instruct-q4_K_M",   # faster model
+        "model": "llama3.1",   # faster model
         "prompt": prompt,
         "stream": False,
         "options": {

@@ -5,7 +5,7 @@ Bienvenue sur le projet **Assistant Juridique**, une application web propulsée 
 Ce projet utilise :
 
 - **Streamlit** pour l'interface utilisateur.
-- **Mistral** (via Ollama) pour générer les réponses.
+- **Llama 3.1** (via Ollama) pour générer les réponses.
 - **ChromaDB** pour la recherche vectorielle des articles de loi.
 - **Sentence-Transformers** & **Cross-Encoder** pour la recherche hybride (Retrieval & Reranking).
 
@@ -24,15 +24,15 @@ git clone https://github.com/Yassine-Hajib/Law_IA.git
 cd Law_IA
 ```
 
-### 2. Installer et configurer l'IA (Mistral via Ollama)
+### 2. Installer et configurer l'IA (Llama 3.1 via Ollama)
 
-Le projet utilise le modèle `mistral` en local pour fonctionner.
+Le projet utilise le modèle `llama3.1` en local pour fonctionner.
 
 1. Téléchargez et installez **Ollama** depuis le site officiel : [https://ollama.com](https://ollama.com)
-2. Une fois installé, ouvrez un terminal et téléchargez le modèle Mistral :
+2. Une fois installé, ouvrez un terminal et téléchargez le modèle Llama 3.1 :
 
    ```bash
-   ollama pull mistral
+   ollama pull llama3.1
    ```
 
 3. Assurez-vous qu'Ollama s'exécute en arrière-plan pendant l'utilisation de l'application.
@@ -80,7 +80,7 @@ L'application s'ouvrira automatiquement dans votre navigateur par défaut (gén�
 
 1. Entrez votre question concernant le droit du travail marocain.
 2. L'application recherche les articles de loi pertinents dans la base de données.
-3. Le modèle Mistral analyse ces articles et rédige une réponse précise.
+3. Le modèle Llama 3.1 analyse ces articles et rédige une réponse précise.
 4. Les sources utilisées pour générer la réponse sont affichées à la fin.
 
 ---

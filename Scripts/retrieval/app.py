@@ -107,7 +107,7 @@ Question de l'utilisateur :
             response = requests.post(
                 "http://localhost:11434/api/chat",
                 json={
-                    "model": "llama3.2:1b",
+                    "model": "llama3.1",
                     "messages": [
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_prompt}
@@ -145,3 +145,4 @@ Question de l'utilisateur :
             st.error("Impossible de se connecter à Ollama. Veuillez vérifier que Ollama est bien lancé (ex: `ollama run mistral` ou `ollama serve`).")
         except Exception as e:
             st.error(f"Erreur lors de la génération : {e}")
+     
