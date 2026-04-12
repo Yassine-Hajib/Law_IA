@@ -1,6 +1,10 @@
 import chromadb
 import requests
 from sentence_transformers import SentenceTransformer, CrossEncoder
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 # Load embedding model (Bi-Encoder)
@@ -87,25 +91,32 @@ Réponse structurée:
 """
 
 
-# Call Ollama (FAST VERSION)
+# Call Groq API
 
-print("\nGénération rapide avec Mistral...\n")
+print("\nGénération via Groq...\n")
+
+if not os.getenv("GROQ_API_KEY"):
+    raise ValueError("GROQ_API_KEY is missing. Add it to your environment or .env file.")
 
 response = requests.post(
-    "http://localhost:11434/api/generate",
+    "https://api.groq.com/openai/v1/chat/completions",
+    headers={
+        "Authorization": f"Bearer {os.getenv('GROQ_API_KEY')}",
+        "Content-Type": "application/json"
+    },
     json={
-        "model": "llama3.1",   # faster model
-        "prompt": prompt,
-        "stream": False,
-        "options": {
-            "num_predict": 450,     # limit output length
-            "temperature": 0.1 ,
-            "top_p": 0.9   # more factual
-        }
-    }
+        "model": os.getenv("GROQ_MODEL", "llama-3.1-8b-instant"),
+        "messages": [
+            {"role": "system", "content": "Tu es un assistant juridique strict, spécialisé en droit du travail marocain."},
+            {"role": "user", "content": prompt}
+        ],
+        "temperature": 0.1,
+        "stream": False
+    },
+    timeout=60
 )
 
 result = response.json()
 
 print("\nRéponse finale:\n")
-print(result["response"])
+print(result["choices"][0]["message"]["content"])

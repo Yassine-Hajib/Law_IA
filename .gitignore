@@ -17,3 +17,6 @@ chroma_db/
 
 # OS files
 .DS_Store
+
+# Environment variables
+.env

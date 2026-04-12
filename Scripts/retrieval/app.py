@@ -2,6 +2,11 @@ import streamlit as st
 import chromadb
 import requests
 from sentence_transformers import SentenceTransformer, CrossEncoder
+import os
+import re
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Configuration de la page
 st.set_page_config(
@@ -25,8 +30,6 @@ def load_models():
     cross_encoder = CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2", device=device)
     return model, cross_encoder
 
-import os
-
 @st.cache_resource
 def load_db():
     """Charge la base de données vectorielle ChromaDB."""
@@ -48,8 +51,21 @@ except Exception as e:
 # Zone de saisie utilisateur
 query = st.text_input("Votre question :", placeholder="Ex: Quels sont mes droits en cas de licenciement abusif ?")
 
+# Groq API config
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
+
 if st.button("Rechercher") and query:
     query_processed = query.strip().lower()
+
+    # Filtre minimal côté application: ne bloque que les entrées vides/bruit évident.
+    if not query_processed:
+        st.warning("Veuillez poser une question claire et pertinente en rapport avec le droit du travail marocain.")
+        st.stop()
+    alpha_count = len(re.findall(r"[a-zA-ZÀ-ÿ]", query_processed))
+    if alpha_count < 3:
+        st.warning("Veuillez poser une question claire et pertinente en rapport avec le droit du travail marocain.")
+        st.stop()
     
     # Amélioration de la requête si elle est trop courte
     if len(query_processed.split()) < 5:
@@ -81,14 +97,14 @@ if st.button("Rechercher") and query:
             
             # Préparation du prompt pour le LLM
             system_prompt = """Tu es un assistant juridique strict et professionnel, expert en droit du travail marocain.
-Ton SEUL ET UNIQUE but est de répondre aux questions sur le droit du travail marocain en utilisant EXCLUSIVEMENT le contexte fourni.
+Réponds en te basant EXCLUSIVEMENT sur le contexte juridique fourni.
 
-RÈGLES STRICTES ET OBLIGATOIRES (Ne les enfreins sous aucun prétexte) :
-1. Si la question n'a AUCUN rapport avec le droit du travail (ex: "bonjour", "comment ça va", "quel est ton nom", "je m'appelle X", "qui est le président"), tu DOIS répondre EXACTEMENT et UNIQUEMENT : "Veuillez poser une question claire et pertinente en rapport avec le droit du travail marocain." Ne dis rien d'autre.
-2. Si la question est une suite de lettres incompréhensible ou du bruit (ex: "jkzkjf", "93022", "hjkjjkdf"), tu DOIS répondre EXACTEMENT et UNIQUEMENT : "Veuillez poser une question claire et pertinente en rapport avec le droit du travail marocain."
-3. Ne réponds JAMAIS aux questions hors sujet, même pour être poli.
-4. Si la question est pertinente au droit du travail mais que le contexte fourni ne contient pas la réponse, réponds UNIQUEMENT : "Cette information n'est pas précisée dans les textes de loi fournis."
-5. Si la réponse est dans le contexte, donne une réponse claire, complète et cite toujours les articles mentionnés."""
+RÈGLES OBLIGATOIRES :
+1. Ne fais AUCUNE classification d'intention (hors sujet, salutations, etc.) : réponds juridiquement à la question posée en utilisant le contexte.
+2. Si le contexte ne contient pas l'information nécessaire, réponds UNIQUEMENT :
+"Cette information n'est pas précisée dans les textes de loi fournis."
+3. Si le contexte contient la réponse, fournis une réponse claire, structurée, concise, et cite explicitement les articles utilisés.
+4. N'invente jamais d'article ni de règle absente du contexte."""
 
             user_prompt = f"""Contexte juridique (Ne réponds qu'à partir de ceci) :
 {context}
@@ -102,47 +118,47 @@ Question de l'utilisateur :
             
     with st.spinner("Génération de la réponse par l'IA..."):
         try:
-            # 3. Génération (LLama 3 via Ollama API Chat)
-            import json
+            # 3. Génération via Groq API
+            if not GROQ_API_KEY:
+                st.error("Clé API Groq manquante. Définissez `GROQ_API_KEY` dans votre environnement avant de lancer l'application.")
+                st.stop()
+
             response = requests.post(
-                "http://localhost:11434/api/chat",
+                "https://api.groq.com/openai/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {GROQ_API_KEY}",
+                    "Content-Type": "application/json"
+                },
                 json={
-                    "model": "llama3.1",
+                    "model": GROQ_MODEL,
                     "messages": [
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_prompt}
                     ],
-                    "stream": True # On garde le streaming pour la vitesse
+                    "temperature": 0.1,
+                    "stream": False
                 },
-                stream=True
+                timeout=60
             )
-            
-            if response.status_code == 200:
-                st.success("Génération de la réponse en cours :")
-                response_placeholder = st.empty()
-                full_response = ""
-                
-                for line in response.iter_lines():
-                    if line:
-                        chunk = json.loads(line)
-                        if "message" in chunk and "content" in chunk["message"]:
-                            full_response += chunk["message"]["content"]
-                            response_placeholder.markdown(full_response + "▌")
-                
-                response_placeholder.markdown(full_response)
-                
-                # Affichage des sources seulement si la question est pertinente
-                if "Veuillez poser une question claire" not in full_response:
-                    with st.expander("Voir les articles de loi utilisés (Sources)"):
-                        for i, doc in enumerate(top_docs):
-                            st.markdown(f"**Source {i+1} :**")
-                            st.info(doc)
-            else:
-                st.error(f"Erreur de l'API Ollama (Code {response.status_code})")
+
+            if response.status_code != 200:
+                st.error(f"Erreur de l'API Groq (Code {response.status_code})")
                 st.write(response.text)
-                
+                st.stop()
+
+            data = response.json()
+            full_response = data["choices"][0]["message"]["content"]
+            st.success("Réponse générée :")
+            st.markdown(full_response)
+
+            # Affichage des sources utilisées
+            with st.expander("Voir les articles de loi utilisés (Sources)"):
+                for i, doc in enumerate(top_docs):
+                    st.markdown(f"**Source {i+1} :**")
+                    st.info(doc)
+
         except requests.exceptions.ConnectionError:
-            st.error("Impossible de se connecter à Ollama. Veuillez vérifier que Ollama est bien lancé (ex: `ollama run mistral` ou `ollama serve`).")
+            st.error("Impossible de se connecter à Groq. Vérifiez votre connexion Internet et la validité de `GROQ_API_KEY`.")
         except Exception as e:
             st.error(f"Erreur lors de la génération : {e}")
      

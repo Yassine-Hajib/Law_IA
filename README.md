@@ -5,7 +5,7 @@ Bienvenue sur le projet **Assistant Juridique**, une application web propulsée 
 Ce projet utilise :
 
 - **Streamlit** pour l'interface utilisateur.
-- **Llama 3.1** (via Ollama) pour générer les réponses.
+- **Groq API** (modèle `llama-3.1-8b-instant` par défaut) pour générer les réponses.
 - **ChromaDB** pour la recherche vectorielle des articles de loi.
 - **Sentence-Transformers** & **Cross-Encoder** pour la recherche hybride (Retrieval & Reranking).
 
@@ -24,18 +24,23 @@ git clone https://github.com/Yassine-Hajib/Law_IA.git
 cd Law_IA
 ```
 
-### 2. Installer et configurer l'IA (Llama 3.1 via Ollama)
+### 2. Configurer l'IA (Groq API)
 
-Le projet utilise le modèle `llama3.1` en local pour fonctionner.
+Le projet utilise l'API Groq avec le modèle `llama-3.1-8b-instant` par défaut.
 
-1. Téléchargez et installez **Ollama** depuis le site officiel : [https://ollama.com](https://ollama.com)
-2. Une fois installé, ouvrez un terminal et téléchargez le modèle Llama 3.1 :
+1. Créez une clé API sur le site Groq : [https://console.groq.com](https://console.groq.com)
+2. Configurez vos variables d'environnement (méthode recommandée avec `.env`) :
 
    ```bash
-   ollama pull llama3.1
+   cp .env.example .env
+   # puis éditez .env et ajoutez votre vraie clé
    ```
 
-3. Assurez-vous qu'Ollama s'exécute en arrière-plan pendant l'utilisation de l'application.
+3. (Optionnel) Choisissez un autre modèle Groq dans `.env` :
+
+   ```bash
+   GROQ_MODEL="llama-3.1-70b-versatile"
+   ```
 
 ### 3. Installer les dépendances Python
 
@@ -57,7 +62,7 @@ Il est fortement recommandé d'utiliser un environnement virtuel.
    Installez les dépendances principales avec la commande suivante :
 
    ```bash
-   pip install streamlit chromadb requests sentence-transformers
+   pip install -r requirements.txt
    ```
 
 ---
@@ -80,7 +85,7 @@ L'application s'ouvrira automatiquement dans votre navigateur par défaut (gén�
 
 1. Entrez votre question concernant le droit du travail marocain.
 2. L'application recherche les articles de loi pertinents dans la base de données.
-3. Le modèle Llama 3.1 analyse ces articles et rédige une réponse précise.
+3. Le modèle Groq (`llama-3.1-8b-instant` par défaut) analyse ces articles et rédige une réponse précise.
 4. Les sources utilisées pour générer la réponse sont affichées à la fin.
 
 ---

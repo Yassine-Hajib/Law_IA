@@ -2,3 +2,4 @@ streamlit
 chromadb
 requests
 sentence-transformers
+python-dotenv
