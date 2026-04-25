@@ -5,9 +5,10 @@ Bienvenue sur le projet **Assistant Juridique**, une application web propulsée 
 Ce projet utilise :
 
 - **Streamlit** pour l'interface utilisateur.
-- **Groq API** (modèle `llama-3.1-8b-instant` par défaut) pour générer les réponses.
-- **ChromaDB** pour la recherche vectorielle des articles de loi.
-- **Sentence-Transformers** & **Cross-Encoder** pour la recherche hybride (Retrieval & Reranking).
+- **Groq API / OpenAI** (modèle `openai/gpt-oss-120b` par défaut) pour générer les réponses.
+- **ChromaDB** pour la recherche vectorielle et le stockage des articles de loi.
+- **Sentence-Transformers** (`BAAI/bge-small-en`) pour générer les embeddings des requêtes.
+- **Cross-Encoder** (`cross-encoder/ms-marco-MiniLM-L-6-v2`) pour le reranking des résultats de recherche pertinents.
 
 ---
 
@@ -26,7 +27,7 @@ cd Law_IA
 
 ### 2. Configurer l'IA (Groq API)
 
-Le projet utilise l'API Groq avec le modèle `llama-3.1-8b-instant` par défaut.
+Le projet utilise l'API Groq (compatible OpenAI) avec le modèle `openai/gpt-oss-120b` par défaut.
 
 1. Créez une clé API sur le site Groq : [https://console.groq.com](https://console.groq.com)
 2. Configurez vos variables d'environnement (méthode recommandée avec `.env`) :
@@ -85,7 +86,7 @@ L'application s'ouvrira automatiquement dans votre navigateur par défaut (gén�
 
 1. Entrez votre question concernant le droit du travail marocain.
 2. L'application recherche les articles de loi pertinents dans la base de données.
-3. Le modèle Groq (`llama-3.1-8b-instant` par défaut) analyse ces articles et rédige une réponse précise.
+3. Le modèle via Groq API (`openai/gpt-oss-120b` par défaut) analyse ces articles et rédige une réponse précise.
 4. Les sources utilisées pour générer la réponse sont affichées à la fin.
 
 ---
