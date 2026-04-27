@@ -30,4 +30,4 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 frontend/node_modules/
-frontend/dist/
+frontend/dist/.DS_Store
