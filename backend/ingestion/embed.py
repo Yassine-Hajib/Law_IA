@@ -3,14 +3,14 @@ from sentence_transformers import SentenceTransformer
 import chromadb
 
 # Load model
-model = SentenceTransformer("BAAI/bge-small-en")
+model = SentenceTransformer("paraphrase-multilingual-MiniLM-L12-v2")
 
 # Load JSON
-with open("../../Data/json/structred_Law_Article.json", "r", encoding="utf-8") as f:
+with open("../data/json/structred_Law_Article.json", "r", encoding="utf-8") as f:
     data = json.load(f)
 
 # Persistent database
-client = chromadb.PersistentClient(path="./chroma_db")
+client = chromadb.PersistentClient(path="../chroma_db")
 collection = client.get_or_create_collection(name="law_articles")
 
 for item in data:
