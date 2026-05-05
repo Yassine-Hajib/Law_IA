@@ -13,7 +13,6 @@ collection = client.get_collection("law_articles")
 
 query = "licenciement et droits du salarié après rupture du contrat"
 query = query.strip().lower()
-
     # If The Question is to short 
 if len(query.split()) < 5:
     query = f"droits du salarié en droit du travail marocain concernant : {query}"
