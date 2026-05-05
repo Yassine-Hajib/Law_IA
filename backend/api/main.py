@@ -33,16 +33,103 @@ def extract_article_number(text):
     match = re.search(r"article\s*(\d+)", text.lower())
     return match.group(1) if match else "unknown"
 
+
+def strip_llm_meta_noise(text: str) -> str:
+    """Supprime les méta-commentaires (Note:, incomplete, etc.) que le modèle ne doit pas exposer."""
+    if not text:
+        return text
+    # Notes multi-lignes du type (Note: ...)
+    text = re.sub(r"\(\s*Note\s*:.*?\)", "", text, flags=re.DOTALL | re.IGNORECASE)
+    # Parenthèses anglaises / arabes de type (Note: ...)
+    text = re.sub(
+        r"\([^)]*(?:\bNote\b|TODO|FIXME|م(?:لاحظة)?\s*(?:للمطور|تقنية)|incomplete|nonsensical|rewrite)[^)]*\)",
+        "",
+        text,
+        flags=re.IGNORECASE,
+    )
+    lines_out = []
+    for line in text.split("\n"):
+        lno = line.strip()
+        if not lno:
+            lines_out.append(line)
+            continue
+        if re.search(r"^\(?\s*Note\s*:", lno, re.IGNORECASE):
+            continue
+        if re.search(
+            r"\b(incomplete|nonsensical|rewrite properly|still incomplete|need to rewrite)\b",
+            lno,
+            re.IGNORECASE,
+        ):
+            continue
+        lines_out.append(line)
+    return "\n".join(lines_out)
+
+
+def dedupe_blank_paragraphs(block: str) -> str:
+    parts = [p.strip() for p in re.split(r"\n\s*\n+", block) if p.strip()]
+    seen = set()
+    unique = []
+    for p in parts:
+        key = re.sub(r"\s+", " ", p)
+        if key in seen:
+            continue
+        seen.add(key)
+        unique.append(p)
+    return "\n\n".join(unique)
+
+
+def normalize_arabic_three_section_response(raw: str) -> str:
+    """
+    Garde une seule fois **الإجابة / التوضيح / الأساس القانوني** (première occurrence de chaque bloc).
+    """
+    raw = strip_llm_meta_noise(raw)
+    # Extraire la première occurrence de chaque section (le modèle répète parfois tout le bloc)
+    pat_answer = re.compile(
+        r"\*\*الإجابة\s*:\*\*\s*(.*?)(?=\*\*التوضيح\s*:\*\*)",
+        re.DOTALL | re.IGNORECASE,
+    )
+    pat_explain = re.compile(
+        r"\*\*التوضيح\s*:\*\*\s*(.*?)(?=\*\*الأساس القانوني\s*:\*\*)",
+        re.DOTALL | re.IGNORECASE,
+    )
+    pat_legal = re.compile(
+        r"\*\*الأساس القانوني\s*:\*\*\s*(.*?)(?=\*\*الإجابة\s*:\*\*|\Z)",
+        re.DOTALL | re.IGNORECASE,
+    )
+    ma = pat_answer.search(raw)
+    me = pat_explain.search(raw)
+    ml = pat_legal.search(raw)
+    if ma and me and ml:
+        a = dedupe_blank_paragraphs(ma.group(1).strip())
+        e = dedupe_blank_paragraphs(me.group(1).strip())
+        lg = dedupe_blank_paragraphs(ml.group(1).strip())
+        a = strip_llm_meta_noise(a)
+        e = strip_llm_meta_noise(e)
+        lg = strip_llm_meta_noise(lg)
+        return (
+            f"**الإجابة :**\n{a}\n\n"
+            f"**التوضيح :**\n{e}\n\n"
+            f"**الأساس القانوني :**\n{lg}"
+        )
+    return strip_llm_meta_noise(dedupe_blank_paragraphs(raw.strip()))
+
+
 class ChatRequest(BaseModel):
     query: str
 
 @app.post("/chat")
 def chat(payload: ChatRequest):
     query = payload.query
-    query_processed = query.strip().lower()
+    query_stripped = query.strip()
+    query_processed = query_stripped.lower()
 
-    if not query_processed or len(re.findall(r"[a-zA-ZÀ-ÿ]", query_processed)) < 3:
-        return {"response": "Question trop courte ou invalide.", "sources": []}
+    latin_letters = len(re.findall(r"[a-zA-ZÀ-ÿ]", query_processed))
+    arabic_letters = len(re.findall(r"[\u0600-\u06FF]", query_stripped))
+    if not query_processed or (latin_letters < 3 and arabic_letters < 3):
+        return {
+            "response": "**الإجابة :** لم يتم اعتبار السؤال مقبولا.\n\n**التوضيح :** نص الطلب قصير جدا أو فارغ؛ يرجى صياغة استفسار أوضح (ثلاثة أحرف أو أكثر).\n\n**الأساس القانوني :** لا ينطبق.",
+            "sources": [],
+        }
 
     # Better query expansion
     if len(query_processed.split()) < 5:
@@ -66,35 +153,48 @@ def chat(payload: ChatRequest):
         top_docs = context_parts
 
     except Exception as e:
-        return {"response": f"Erreur de recherche (RAG) : {e}", "sources": []}
+        return {
+            "response": f"**الإجابة :** تعذر تنفيذ البحث في القاعدة.\n\n**التوضيح :** خطأ تقني أثناء الاسترجاع المعجمي التراكيبي للوثائق: {e}\n\n**الأساس القانوني :** لا ينطبق.",
+            "sources": [],
+        }
 
     system_prompt = """Tu es un expert du droit du travail marocain.
 
-RÈGLES D'INTERPRÉTATION (TRÈS IMPORTANT) :
-Si l'utilisateur emploie des termes familiers (ex: "vacances pour la femme enceinte"), tu DOIS répondre directement avec les règles du "congé de maternité" (14 semaines). Ne lui dis SURTOUT PAS que "la loi ne parle pas de vacances mais de congé". Réponds directement à son intention !
+LANGUE : arabe moderne standard uniquement (fusḥā), quel que soit le dialecte ou la langue de la question.
 
-RÈGLES DE FORMATAGE STRICTES (Très professionnel, SANS EMOJI) :
-Structure ta réponse OBLIGATOIREMENT comme ceci (avec des sauts de ligne) :
+FORMAT UNIQUE — À RESPECTER STRICTEMENT :
+Tu dois produire EXACTEMENT trois blocs, CHACUN UNE SEULE FOIS, sans les répéter et sans brouillon ni version alternative :
 
-**Réponse :** [Donne la réponse factuelle directement]
+**الإجابة :**
+(un paragraphe ou deux, réponse directe au citoyen)
 
-**Explication :** [Résumé simple de la règle juridique en 1 ou 2 phrases]
+**التوضيح :**
+(un paragraphe ou deux, synthèse juridique claire)
 
-**Base Légale :** [Numéro de l'Article exact, ex: Article 154]
+**الأساس القانوني :**
+(numéros d'articles précis tirés du contexte fourni ; si insuffisant, indiquer en une phrase que le contexte ne permet pas de citer sans inventer)
 
-INTERDICTIONS :
-- NE JAMAIS utiliser d'emojis.
-- Ne jamais dire "Bonjour" ou d'autres phrases de politesse.
-- Ne réponds "Non précisé" que si le sujet général n'existe vraiment pas dans le contexte.
+INTERDICTIONS ABSOLUES (ne jamais écrire pour l'utilisateur final) :
+- Aucune phrase en anglais sauf numéro d'article si déjà ainsi dans la source.
+- Aucune méta-note : pas de « Note: », « incomplete », « rewrite », « nonsensical », « TODO », pas de commentaire entre parenthèses sur la qualité du texte.
+- Pas de répétition du même bloc juridique plusieurs fois.
+- Pas de lignes horizontales décoratives (---), pas de plusieurs en-têtes **الإجابة** dans une même réponse.
+- Pas d'émojis ni de formules de salutation.
+
+STYLE : ton administratif sobre ; tu parles au citoyen, pas au développeur.
+Si une notion familière correspond à un terme juridique officiel (ex. « الخدمة » pour le travail salarié), réponds avec le vocabulaire du Code du travail marocain sans moraliser.
 """
 
-    user_prompt = f"Contexte juridique :\\n{context}\\n\\nQuestion :\\n{query}\\n"
+    user_prompt = f"المرجعيات القانونية المقتطفة :\\n{context}\\n\\nسؤال المستخدم :\\n{query}\\n"
 
     GROQ_API_KEY = os.getenv("GROQ_API_KEY")
     GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
 
     if not GROQ_API_KEY:
-         return {"response": "Erreur : Clé API Groq manquante dans .env.", "sources": []}
+        return {
+            "response": "**الإجابة :** الخدمة غير مهيأة.\n\n**التوضيح :** مفتاح برمجية واجهة Groq غير موجود في الإعداد (.env).\n\n**الأساس القانوني :** لا ينطبق.",
+            "sources": [],
+        }
 
     try:
         response = requests.post(
@@ -109,16 +209,20 @@ INTERDICTIONS :
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt}
                 ],
-                "temperature": 0.1
+                "temperature": 0
             },
             timeout=60
         )
 
         if response.status_code != 200:
-             return {"response": f"Erreur API Groq ({response.status_code}) : {response.text}", "sources": []}
+            return {
+                "response": f"**الإجابة :** فشل الاتصال بمنصة توليف النصوص.\n\n**التوضيح :** خطأ خارجي برمز الحالة ({response.status_code}).\n\n**الأساس القانوني :** لا ينطبق.",
+                "sources": [],
+            }
 
         data = response.json()
         full_response = data["choices"][0]["message"]["content"]
+        full_response = normalize_arabic_three_section_response(full_response)
 
         return {
             "response": full_response,
@@ -126,4 +230,7 @@ INTERDICTIONS :
         }
 
     except Exception as e:
-        return {"response": f"Erreur de génération : {e}", "sources": []}
+        return {
+            "response": f"**الإجابة :** خطأ أثناء توليد المسودة الذكية.\n\n**التوضيح :** {e}\n\n**الأساس القانوني :** لا ينطبق.",
+            "sources": [],
+        }
