@@ -140,24 +140,40 @@ def dedupe_blank_paragraphs(block: str) -> str:
     return "\n\n".join(unique)
 
 
-def normalize_arabic_three_section_response(raw: str) -> str:
+def normalize_three_section_response(raw: str, lang: str = "ar") -> str:
     """
-    Garde une seule fois **الإجابة / التوضيح / الأساس القانوني** (première occurrence de chaque bloc).
+    Garde une seule fois la section réponse / explication / base juridique.
     """
     raw = strip_llm_meta_noise(raw)
-    # Extraire la première occurrence de chaque section (le modèle répète parfois tout le bloc)
+    
+    if lang == "fr":
+        h_answer = r"Réponse"
+        h_explain = r"Explication"
+        h_legal = r"Base juridique"
+        fmt_answer = "Réponse"
+        fmt_explain = "Explication"
+        fmt_legal = "Base juridique"
+    else:
+        h_answer = r"الإجابة"
+        h_explain = r"التوضيح"
+        h_legal = r"الأساس القانوني"
+        fmt_answer = "الإجابة"
+        fmt_explain = "التوضيح"
+        fmt_legal = "الأساس القانوني"
+
     pat_answer = re.compile(
-        r"\*\*الإجابة\s*:\*\*\s*(.*?)(?=\*\*التوضيح\s*:\*\*)",
+        rf"\*\*{h_answer}\s*:\*\*\s*(.*?)(?=\*\*{h_explain}\s*:\*\*)",
         re.DOTALL | re.IGNORECASE,
     )
     pat_explain = re.compile(
-        r"\*\*التوضيح\s*:\*\*\s*(.*?)(?=\*\*الأساس القانوني\s*:\*\*)",
+        rf"\*\*{h_explain}\s*:\*\*\s*(.*?)(?=\*\*{h_legal}\s*:\*\*)",
         re.DOTALL | re.IGNORECASE,
     )
     pat_legal = re.compile(
-        r"\*\*الأساس القانوني\s*:\*\*\s*(.*?)(?=\*\*الإجابة\s*:\*\*|\Z)",
+        rf"\*\*{h_legal}\s*:\*\*\s*(.*?)(?=\*\*{h_answer}\s*:\*\*|\Z)",
         re.DOTALL | re.IGNORECASE,
     )
+    
     ma = pat_answer.search(raw)
     me = pat_explain.search(raw)
     ml = pat_legal.search(raw)
@@ -169,29 +185,37 @@ def normalize_arabic_three_section_response(raw: str) -> str:
         e = strip_llm_meta_noise(e)
         lg = strip_llm_meta_noise(lg)
         return (
-            f"**الإجابة :**\n{a}\n\n"
-            f"**التوضيح :**\n{e}\n\n"
-            f"**الأساس القانوني :**\n{lg}"
+            f"**{fmt_answer} :**\n{a}\n\n"
+            f"**{fmt_explain} :**\n{e}\n\n"
+            f"**{fmt_legal} :**\n{lg}"
         )
     return strip_llm_meta_noise(dedupe_blank_paragraphs(raw.strip()))
 
 
 class ChatRequest(BaseModel):
     query: str
+    lang: str = "ar"
 
 @app.post("/chat")
 def chat(payload: ChatRequest):
     query = payload.query
+    lang = payload.lang
     query_stripped = query.strip()
     query_processed = query_stripped.lower()
 
     latin_letters = len(re.findall(r"[a-zA-ZÀ-ÿ]", query_processed))
     arabic_letters = len(re.findall(r"[\u0600-\u06FF]", query_stripped))
     if not query_processed or (latin_letters < 3 and arabic_letters < 3):
-        return {
-            "response": "**الإجابة :** لم يتم اعتبار السؤال مقبولا.\n\n**التوضيح :** نص الطلب قصير جدا أو فارغ؛ يرجى صياغة استفسار أوضح (ثلاثة أحرف أو أكثر).\n\n**الأساس القانوني :** لا ينطبق.",
-            "sources": [],
-        }
+        if lang == "fr":
+            return {
+                "response": "**Réponse :** La question n'a pas été considérée comme valide.\n\n**Explication :** Le texte est trop court ou vide ; veuillez formuler une demande plus claire (trois lettres ou plus).\n\n**Base juridique :** N/A.",
+                "sources": [],
+            }
+        else:
+            return {
+                "response": "**الإجابة :** لم يتم اعتبار السؤال مقبولا.\n\n**التوضيح :** نص الطلب قصير جدا أو فارغ؛ يرجى صياغة استفسار أوضح (ثلاثة أحرف أو أكثر).\n\n**الأساس القانوني :** لا ينطبق.",
+                "sources": [],
+            }
 
     if len(query_processed.split()) < 5:
         query_processed = f"droit du travail marocain responsabilités conditions légales article : {query_processed}"
@@ -226,12 +250,45 @@ def chat(payload: ChatRequest):
         context = "\n\n".join(context_parts)
 
     except Exception as e:
-        return {
-            "response": f"**الإجابة :** تعذر تنفيذ البحث في القاعدة.\n\n**التوضيح :** خطأ تقني أثناء الاسترجاع المعجمي التراكيبي للوثائق: {e}\n\n**الأساس القانوني :** لا ينطبق.",
-            "sources": [],
-        }
+        if lang == "fr":
+            return {
+                "response": f"**Réponse :** Impossible d'effectuer la recherche dans la base de données.\n\n**Explication :** Erreur technique lors de la récupération : {e}\n\n**Base juridique :** N/A.",
+                "sources": [],
+            }
+        else:
+            return {
+                "response": f"**الإجابة :** تعذر تنفيذ البحث في القاعدة.\n\n**التوضيح :** خطأ تقني أثناء الاسترجاع المعجمي التراكيبي للوثائق: {e}\n\n**الأساس القانوني :** لا ينطبق.",
+                "sources": [],
+            }
 
-    system_prompt = """Tu es un expert du droit du travail marocain.
+    if lang == "fr":
+        system_prompt = """Tu es un expert du droit du travail marocain.
+
+LANGUE : français professionnel, quel que soit la langue de la question.
+
+FORMAT UNIQUE — À RESPECTER STRICTEMENT :
+Tu dois produire EXACTEMENT trois blocs, CHACUN UNE SEULE FOIS, sans les répéter et sans brouillon ni version alternative :
+
+**Réponse :**
+(un paragraphe ou deux, réponse directe au citoyen)
+
+**Explication :**
+(un paragraphe ou deux, synthèse juridique claire)
+
+**Base juridique :**
+(numéros d'articles précis tirés du contexte fourni ; si insuffisant, indiquer en une phrase que le contexte ne permet pas de citer sans inventer)
+
+INTERDICTIONS ABSOLUES (ne jamais écrire pour l'utilisateur final) :
+- Aucune phrase en arabe sauf numéro d'article si déjà ainsi dans la source.
+- Aucune méta-note : pas de « Note: », « incomplete », « rewrite », « nonsensical », « TODO », pas de commentaire entre parenthèses sur la qualité du texte.
+- Pas de répétition du même bloc juridique plusieurs fois.
+- Pas de lignes horizontales décoratives (---), pas de plusieurs en-têtes **Réponse** dans une même réponse.
+- Pas d'émojis ni de formules de salutation.
+
+STYLE : ton administratif sobre ; tu parles au citoyen, pas au développeur.
+"""
+    else:
+        system_prompt = """Tu es un expert du droit du travail marocain.
 
 LANGUE : arabe moderne standard uniquement (fusḥā), quel que soit le dialecte ou la langue de la question.
 
@@ -288,14 +345,20 @@ Si une notion familière correspond à un terme juridique officiel (ex. « ال�
         )
 
         if response.status_code != 200:
-            return {
-                "response": f"**الإجابة :** فشل الاتصال بمنصة توليف النصوص.\n\n**التوضيح :** خطأ خارجي برمز الحالة ({response.status_code}).\n\n**الأساس القانوني :** لا ينطبق.",
-                "sources": [],
-            }
+            if lang == "fr":
+                return {
+                    "response": f"**Réponse :** Échec de la connexion à la plateforme de synthèse.\n\n**Explication :** Erreur externe avec le code ({response.status_code}).\n\n**Base juridique :** N/A.",
+                    "sources": [],
+                }
+            else:
+                return {
+                    "response": f"**الإجابة :** فشل الاتصال بمنصة توليف النصوص.\n\n**التوضيح :** خطأ خارجي برمز الحالة ({response.status_code}).\n\n**الأساس القانوني :** لا ينطبق.",
+                    "sources": [],
+                }
 
         data = response.json()
         full_response = data["choices"][0]["message"]["content"]
-        full_response = normalize_arabic_three_section_response(full_response)
+        full_response = normalize_three_section_response(full_response, lang)
 
         return {
             "response": full_response,
@@ -303,7 +366,13 @@ Si une notion familière correspond à un terme juridique officiel (ex. « ال�
         }
 
     except Exception as e:
-        return {
-            "response": f"**الإجابة :** خطأ أثناء توليد المسودة الذكية.\n\n**التوضيح :** {e}\n\n**الأساس القانوني :** لا ينطبق.",
-            "sources": [],
-        }
+        if lang == "fr":
+            return {
+                "response": f"**Réponse :** Erreur lors de la génération.\n\n**Explication :** {e}\n\n**Base juridique :** N/A.",
+                "sources": [],
+            }
+        else:
+            return {
+                "response": f"**الإجابة :** خطأ أثناء توليد المسودة الذكية.\n\n**التوضيح :** {e}\n\n**الأساس القانوني :** لا ينطبق.",
+                "sources": [],
+            }

@@ -331,7 +331,7 @@ const ChatbotUI = ({ onBack }) => {
       const res = await fetch('http://127.0.0.1:8000/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query }),
+        body: JSON.stringify({ query, lang }),
       });
       const data = await res.json();
       setMessages((prev) => [...prev, { id: Date.now(), role: 'assistant', content: data.response }]);
