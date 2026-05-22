@@ -299,7 +299,7 @@ const LandingPage = ({ onStart }) => {
 };
 
 const ChatbotUI = ({ onBack }) => {
-  const { t } = useContext(LangContext);
+  const { t, lang } = useContext(LangContext);
   const [messages, setMessages] = useState([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
