@@ -10,6 +10,15 @@ from dotenv import load_dotenv, find_dotenv
 
 load_dotenv(find_dotenv(usecwd=False), override=True)
 
+# Try to import sentence_transformers for local fallback when offline
+try:
+    from sentence_transformers import SentenceTransformer
+    HAS_SENTENCE_TRANSFORMERS = True
+except ImportError:
+    HAS_SENTENCE_TRANSFORMERS = False
+
+local_model = None
+
 app = FastAPI()
 
 app.add_middleware(
@@ -40,19 +49,44 @@ except Exception as e:
     print(f"Error loading database: {e}")
 
 def get_huggingface_embedding(text: str):
+    # Check if local embedding mode is explicitly requested
+    use_local = os.getenv("USE_LOCAL_EMBEDDINGS", "false").lower() == "true"
+    
+    if use_local and HAS_SENTENCE_TRANSFORMERS:
+        global local_model
+        if local_model is None:
+            print("Loading local SentenceTransformer model...")
+            local_model = SentenceTransformer("paraphrase-multilingual-MiniLM-L12-v2")
+        print("Using local SentenceTransformer model to compute embedding.")
+        return np.array(local_model.encode(text))
+
     hf_token = os.getenv("HF_TOKEN")
     if not hf_token:
-         raise Exception("HF_TOKEN not found in environment variables. Please get a free token from huggingface.co")
+        if HAS_SENTENCE_TRANSFORMERS:
+            print("HF_TOKEN not found. Falling back to local SentenceTransformer model.")
+            if local_model is None:
+                local_model = SentenceTransformer("paraphrase-multilingual-MiniLM-L12-v2")
+            return np.array(local_model.encode(text))
+        raise Exception("HF_TOKEN not found in environment variables. Please get a free token from huggingface.co or install sentence-transformers to run locally.")
     
     # Using the free inference API for sentence-transformers
     api_url = "https://api-inference.huggingface.co/pipeline/feature-extraction/sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
     headers = {"Authorization": f"Bearer {hf_token}"}
     
-    response = requests.post(api_url, headers=headers, json={"inputs": [text]})
-    if response.status_code != 200:
-        raise Exception(f"Hugging Face API Error: {response.text}")
-    
-    return np.array(response.json()[0])
+    try:
+        response = requests.post(api_url, headers=headers, json={"inputs": [text]}, timeout=10)
+        if response.status_code == 200:
+            return np.array(response.json()[0])
+        else:
+            raise Exception(f"Hugging Face API Error: {response.text}")
+    except Exception as e:
+        # If API call fails (like NameResolutionError), fall back to local model if available
+        if HAS_SENTENCE_TRANSFORMERS:
+            print(f"Hugging Face API failed ({e}). Falling back to local SentenceTransformer model.")
+            if local_model is None:
+                local_model = SentenceTransformer("paraphrase-multilingual-MiniLM-L12-v2")
+            return np.array(local_model.encode(text))
+        raise e
 
 def cosine_similarity(a, b):
     return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))

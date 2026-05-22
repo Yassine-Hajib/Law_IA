@@ -1,0 +1,14 @@
+# Ignore the ingestion scripts and raw data since they are not needed in production
+backend/ingestion/
+backend/data/Law_pdf/
+backend/data/json/articles_raw.json
+backend/data/json/full_law.txt
+backend/data/json/structred_Law_Article.json
+backend/chroma_db/
+
+# Tests and other unnecessary files
+tests/
+*.md
+.git/
+.vscode/
+.idea/
