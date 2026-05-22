@@ -25,10 +25,10 @@ pip install -r requirements.txt --quiet
 echo       Done!
 
 echo [2/3] Starting Backend API...
-start "LegalAssistant - Backend" cmd /k "cd /d %~dp0backend\api && python -m uvicorn main:app --host 127.0.0.1 --port 8000"
+start /min "LegalAssistant - Backend" cmd /k "cd /d %~dp0backend\api && python -m uvicorn main:app --host 127.0.0.1 --port 8000"
 
 echo [3/3] Starting Frontend UI...
-start "LegalAssistant - Frontend" cmd /k "cd /d %~dp0frontend && npm install --silent && npm run dev"
+start /min "LegalAssistant - Frontend" cmd /k "cd /d %~dp0frontend && npm install --silent && npm run dev"
 
 echo.
 echo ============================================
