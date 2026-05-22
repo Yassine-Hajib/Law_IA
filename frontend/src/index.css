@@ -875,7 +875,6 @@ body {
   line-height: 1.65;
   outline: none;
   resize: vertical;
-  direction: rtl;
   background: #fafbfd;
   color: var(--text-dark);
 }
