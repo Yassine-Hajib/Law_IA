@@ -1,5 +1,6 @@
-streamlit
-chromadb
+fastapi
+uvicorn
+pydantic
 requests
-sentence-transformers
 python-dotenv
+numpy

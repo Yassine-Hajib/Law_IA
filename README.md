@@ -1,90 +1,76 @@
-# ⚖️ LegalAssistant - Moroccan Labor Law AI
+# ⚖️ LegalAssistant — Moroccan Labor Law AI
 
-**LegalAssistant** is a professional-grade, Full-Stack RAG (Retrieval-Augmented Generation) application designed to navigate the complexity of the **Moroccan Labor Code**. It provides accurate, cited, and summarized legal advice through a premium, AI-driven interface.
-
----
-
-## ✨ Features
-
-- **Semantic Search Engine**: Intelligent retrieval of Moroccan Labor Law articles based on intent, not just keywords.
-- **Premium UI/UX**: A state-of-the-art dark-themed React interface featuring glassmorphism, 3D animations, and a responsive lawyer avatar.
-- **Extreme Precision**: Advanced regex-based preprocessing of the legal corpus (588 articles) to eliminate noise and maximize retrieval accuracy.
-- **Direct Citations**: Every answer is backed by strict references to the relevant Articles of the Moroccan Labor Code.
-- **Optimized for French/Arabic Context**: Utilizes multilingual embedding models to maintain high semantic precision in the local legal language.
+A professional AI tool that answers questions about the **Moroccan Labor Code**, with citations to the exact legal articles.
 
 ---
 
-## 🛠️ Technology Stack
+## 🚀 How to Start the App (Easy Way)
 
-### Frontend (User Interface)
-- **Vite & React 18**: Used for near-instant hot module replacement and a smooth, component-based single-page application experience.
-- **Lucide-React**: Premium iconography for a modern, professional legal aesthetic.
-- **Custom CSS Engine**: Implements a dedicated design system with CSS variables, smooth transitions, and high-quality dark-mode aesthetics.
+### Step 1 — First Time Only: Add your API Keys
 
-### Backend (The Intelligence)
-- **FastAPI**: A high-performance Python framework for handling chat logic and vector database interactions with low latency.
-- **ChromaDB**: An AI-native vector database used to store and query legal embeddings with sub-second performance.
-- **Sentence-Transformers**: Uses `paraphrase-multilingual-MiniLM-L12-v2` to provide 384-dimensional semantic embeddings, specifically chosen for its high performance in French legal contexts.
-- **Groq Cloud (LLM)**: Integrates **Llama-3.3-70B-Versatile** for professional, logical, and concise legal synthesis.
+1. In the `Law_IA` folder, find the file named **`.env`**
+2. Open it with Notepad
+3. Make sure it contains your API keys (replace `your_key_here` with your real keys):
+   ```env
+   GROQ_API_KEY=your_groq_key_here
+   GROQ_MODEL=llama-3.3-70b-versatile
+   HF_TOKEN=your_huggingface_token_here
+   ```
+   * 🔑 **Groq API Key**: Sign up and get a free key at [console.groq.com](https://console.groq.com/keys).
+   * 🔑 **Hugging Face Token**: Sign up and get a free Read access token at [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens). This is required to generate query embeddings using the Hugging Face Serverless Inference API.
+
+### Step 2 — Launch the App
+
+Double-click the launcher script in the root directory:
+
+> ### 👉 `start.bat`
+
+A few windows will open. **Wait about 15 seconds**, and your default browser will open automatically pointing to the app at:
+* **Frontend UI**: [http://localhost:5173](http://localhost:5173)
+* **Backend API**: [http://localhost:8000](http://localhost:8000)
+
+### Step 3 — Use the App
+
+* Type your legal question in the chat box (in French or Arabic).
+* The AI will analyze the query, retrieve relevant law articles, and answer in professional modern standard Arabic (Fusḥā) with the exact article numbers from the Moroccan Labor Code.
+
+### Step 4 — Stop the App
+
+When you're done, double-click the stop script in the root directory to release the network ports:
+
+> ### 👉 `stop.bat`
 
 ---
 
-## 🏗️ Project Architecture
+## ⚙️ Requirements
+
+Make sure you have these installed on your computer (one-time setup):
+
+| Tool | Download Link | Purpose |
+|------|--------------|---------|
+| Python 3.10+ | https://www.python.org/downloads/ | Runs the FastAPI Backend API |
+| Node.js 18+ | https://nodejs.org/ | Runs the React (Vite) Frontend |
+
+---
+
+## 📁 Project Structure
 
 ```text
 Law_IA/
-├── backend/
-│   ├── api/             # FastAPI Application (Logic, Prompting, Retrieval)
-│   ├── ingestion/       # Vector DB pipeline (Sanitization, Embedding)
-│   ├── data/            # Raw & Structured legal datasets
-│   └── chroma_db/       # Persistent Vector Database
-├── frontend/
-│   └── src/             # Premium React UI Components & Style
-└── .env                 # Sensitive API Configurations
+├── start.bat          ← Double-click to START the app
+├── stop.bat           ← Double-click to STOP the app
+├── .env               ← Your API keys (keep this private!)
+├── requirements.txt   ← Python dependencies
+├── backend/           ← The AI Search Engine (FastAPI)
+│   ├── api/
+│   │   └── main.py    ← Backend API server
+│   └── data/
+│       └── json/
+│           └── precomputed_embeddings.json ← Pre-computed law embeddings
+└── frontend/          ← The User Interface (React + Vite)
 ```
 
 ---
 
-## 🚀 Quick Start
+> ⚠️ **Disclaimer**: This tool is an AI assistant designed for informational and guiding purposes. It does not replace the advice of a certified legal professional. Always verify responses against the official publication in the Moroccan Bulletin Officiel (الجريدة الرسمية).
 
-### 1. Prerequisite: API Configuration
-Create a `.env` file in the root directory:
-```env
-GROQ_API_KEY=your_api_key_here
-GROQ_MODEL=llama-3.3-70b-versatile
-```
-
-### 2. Backend Setup
-```bash
-# Create and activate virtual environment
-python -m venv venv
-source venv/bin/activate  # Mac/Linux
-
-# Install requirements
-pip install -r requirements.txt
-
-# Run the API
-uvicorn backend.api.main:app --host 127.0.0.1 --port 8000
-```
-
-### 3. Frontend Setup
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-The application will be live at `http://localhost:5173`.
-
----
-
-## 📖 How It Works (RAG Pipeline)
-1. **Extraction**: Raw legal text is sanitized via `backend/ingestion/split_articles_fr.py` using advanced Regex to isolate 588 distinct articles.
-2. **Embedding**: The text is converted into vector representations using `SentenceTransformer` and stored in **ChromaDB**.
-3. **Querying**: User queries are transformed into vectors and matched against the legal database via cosine similarity.
-4. **Synthesis**: The top relevant articles are passed into the **Llama-3.3** model with a strict system prompt to generate a structured, emoji-free, professional legal response.
-
----
-
-> [!IMPORTANT]
-> This tool is an assistant and does not replace the advice of a certified legal professional. All legal references should be verified against the official **Bulletin Officiel du Royaume du Maroc**.

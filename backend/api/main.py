@@ -1,15 +1,14 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-import chromadb
 import requests
-from sentence_transformers import SentenceTransformer, CrossEncoder
 import os
+import json
+import numpy as np
 import re
-import torch
-from dotenv import load_dotenv
+from dotenv import load_dotenv, find_dotenv
 
-load_dotenv()
+load_dotenv(find_dotenv(usecwd=False), override=True)
 
 app = FastAPI()
 
@@ -21,13 +20,42 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-device = "mps" if torch.backends.mps.is_available() else "cpu"
-model = SentenceTransformer("paraphrase-multilingual-MiniLM-L12-v2", device=device)
-
+# Load precomputed embeddings into memory
 script_dir = os.path.dirname(os.path.abspath(__file__))
-db_path = os.path.join(script_dir, "..", "chroma_db")
-client = chromadb.PersistentClient(path=db_path)
-collection = client.get_collection("law_articles")
+db_path = os.path.join(script_dir, "..", "data", "json", "precomputed_embeddings.json")
+
+print("Loading vector database...")
+embeddings_db = []
+try:
+    if os.path.exists(db_path):
+        with open(db_path, "r", encoding="utf-8") as f:
+            embeddings_db = json.load(f)
+            # Convert embeddings to numpy arrays for faster computation
+            for item in embeddings_db:
+                item["embedding"] = np.array(item["embedding"])
+        print(f"Loaded {len(embeddings_db)} articles.")
+    else:
+        print(f"Warning: Database file not found at {db_path}")
+except Exception as e:
+    print(f"Error loading database: {e}")
+
+def get_huggingface_embedding(text: str):
+    hf_token = os.getenv("HF_TOKEN")
+    if not hf_token:
+         raise Exception("HF_TOKEN not found in environment variables. Please get a free token from huggingface.co")
+    
+    # Using the free inference API for sentence-transformers
+    api_url = "https://api-inference.huggingface.co/pipeline/feature-extraction/sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+    headers = {"Authorization": f"Bearer {hf_token}"}
+    
+    response = requests.post(api_url, headers=headers, json={"inputs": [text]})
+    if response.status_code != 200:
+        raise Exception(f"Hugging Face API Error: {response.text}")
+    
+    return np.array(response.json()[0])
+
+def cosine_similarity(a, b):
+    return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
 
 def extract_article_number(text):
     match = re.search(r"article\s*(\d+)", text.lower())
@@ -131,26 +159,37 @@ def chat(payload: ChatRequest):
             "sources": [],
         }
 
-    # Better query expansion
     if len(query_processed.split()) < 5:
         query_processed = f"droit du travail marocain responsabilités conditions légales article : {query_processed}"
 
     try:
-        query_embedding = model.encode(query_processed).tolist()
+        # Get embedding from HF API instead of local model
+        query_embedding = get_huggingface_embedding(query_processed)
 
-        results = collection.query(
-            query_embeddings=[query_embedding],
-            n_results=5  # No reranking needed for a good model
-        )
-        documents = results["documents"][0]
-        ids = results["ids"][0]
+        if not embeddings_db:
+             return {"response": "Erreur : La base de données d'articles n'est pas chargée. Assurez-vous d'avoir exécuté precompute_embeddings.py.", "sources": []}
 
+        # Compute similarities using numpy
+        similarities = []
+        for item in embeddings_db:
+            sim = cosine_similarity(query_embedding, item["embedding"])
+            similarities.append((sim, item))
+        
+        # Sort by similarity descending
+        similarities.sort(key=lambda x: x[0], reverse=True)
+        
+        # Get top 5 results
+        top_results = similarities[:5]
+        
         context_parts = []
-        for doc_id, doc in zip(ids, documents):
-            context_parts.append(f"{doc_id} :\n{doc}")
+        top_docs = []
+        for sim, item in top_results:
+            doc_id = item["id"]
+            doc_text = item["text"]
+            context_parts.append(f"{doc_id} :\n{doc_text}")
+            top_docs.append(f"{doc_id} :\n{doc_text}")
 
-        context = "\\n\\n".join(context_parts)
-        top_docs = context_parts
+        context = "\n\n".join(context_parts)
 
     except Exception as e:
         return {
@@ -185,7 +224,7 @@ STYLE : ton administratif sobre ; tu parles au citoyen, pas au développeur.
 Si une notion familière correspond à un terme juridique officiel (ex. « الخدمة » pour le travail salarié), réponds avec le vocabulaire du Code du travail marocain sans moraliser.
 """
 
-    user_prompt = f"المرجعيات القانونية المقتطفة :\\n{context}\\n\\nسؤال المستخدم :\\n{query}\\n"
+    user_prompt = f"المرجعيات القانونية المقتطفة :\n{context}\n\nسؤال المستخدم :\n{query}\n"
 
     GROQ_API_KEY = os.getenv("GROQ_API_KEY")
     GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
