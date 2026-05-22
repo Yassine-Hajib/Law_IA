@@ -446,6 +446,9 @@ const ChatbotUI = ({ onBack }) => {
                   className="chat-input"
                   placeholder={t.chatPlaceholder}
                   rows={3}
+                  dir={lang === 'ar' ? 'rtl' : 'ltr'}
+                  lang={lang}
+                  style={{ textAlign: lang === 'ar' ? 'right' : 'left' }}
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
                   onKeyDown={(e) => {
