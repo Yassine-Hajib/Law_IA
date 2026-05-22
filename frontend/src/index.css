@@ -39,8 +39,14 @@ html {
 
 html, body {
   margin: 0;
-  direction: rtl;
+}
+
+[dir="rtl"] {
   text-align: right;
+}
+
+[dir="ltr"] {
+  text-align: left;
 }
 
 body {
@@ -295,7 +301,7 @@ body {
   gap: 1rem;
   max-width: 960px;
   margin: 0 auto 2rem;
-  text-align: right;
+  text-align: start;
 }
 
 .svc-card {

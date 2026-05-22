@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, createContext, useContext } from 'react';
 import {
   Scale,
   ArrowRight,
@@ -10,8 +10,12 @@ import {
   User,
   ChevronLeft,
   ExternalLink,
+  Globe,
 } from 'lucide-react';
 import './index.css';
+import { T } from './translations';
+
+const LangContext = createContext();
 
 const SITE_LOGO = '/Group-1511-1.svg';
 
@@ -124,23 +128,24 @@ function MessageBody({ content }) {
 }
 
 function PortalNavWithHome({ compact }) {
+  const { t } = useContext(LangContext);
   if (compact) return null;
   return (
     <nav className="portal-nav" aria-label="التنقل الرئيسي">
       <div className="portal-nav-inner">
-        <a href="#accueil" className="portal-nav-home" title="الاستقبال" aria-label="الانتقال إلى الاستقبال">
+        <a href="#accueil" className="portal-nav-home" title={t.home} aria-label={t.home}>
           <Home size={20} aria-hidden />
         </a>
-        <a href="#accueil">استقبال المنصة</a>
+        <a href="#accueil">{t.home}</a>
         <a href={LINK_MAHAKIM} target="_blank" rel="noopener noreferrer">
-          تتبع الملفات <ExternalLink size={11} style={{ opacity: 0.85 }} aria-hidden />
+          {t.track} <ExternalLink size={11} style={{ opacity: 0.85 }} aria-hidden />
         </a>
         <a href={LINK_JUSTICE_MIN} target="_blank" rel="noopener noreferrer">
-          السجل العدلي والخدمات <ExternalLink size={11} style={{ opacity: 0.85 }} aria-hidden />
+          {t.criminal} <ExternalLink size={11} style={{ opacity: 0.85 }} aria-hidden />
         </a>
-        <a href="#guide">دليل المستعمل</a>
+        <a href="#guide">{t.guide}</a>
         <a href={LINK_JUSTICE_MIN} target="_blank" rel="noopener noreferrer">
-          الاتصال بوزارة العدل <ExternalLink size={11} style={{ opacity: 0.85 }} aria-hidden />
+          {t.contact} <ExternalLink size={11} style={{ opacity: 0.85 }} aria-hidden />
         </a>
       </div>
     </nav>
@@ -148,6 +153,7 @@ function PortalNavWithHome({ compact }) {
 }
 
 function PortalHeader({ compact }) {
+  const { t, lang, setLang } = useContext(LangContext);
   return (
     <>
       <div className="portal-top">
@@ -168,21 +174,36 @@ function PortalHeader({ compact }) {
                 />
               </div>
               <div className="pt-names">
-                <div className="pt-main-title">المملكة المغربية · وزارة العدل</div>
-                <div className="pt-sub-title">مساعد إرشادي — مدونة الشغل المغربية</div>
+                <div className="pt-main-title">{t.ministry}</div>
+                <div className="pt-sub-title">{t.subMinistry}</div>
               </div>
             </div>
 
             {!compact && (
               <div className="pt-slogan">
-                <span>محاكم المملكة في خدمة المواطنة</span>
-                <small>خدمات رقمية بروح الإدارة المواطَنة</small>
+                <span>{t.slogan1}</span>
+                <small>{t.slogan2}</small>
               </div>
             )}
 
             <div className="pt-portal-name">
-              <span>{compact ? 'استشارات مدونة الشغل' : 'مساعد مدونة الشغل الإلكتروني'}</span>
+              <span>{compact ? t.portalCompact : t.portalFull}</span>
             </div>
+
+            <button 
+              className="lang-switcher"
+              onClick={() => setLang(lang === 'ar' ? 'fr' : 'ar')}
+              style={{
+                marginLeft: lang === 'ar' ? '0' : 'auto',
+                marginRight: lang === 'ar' ? 'auto' : '0',
+                display: 'flex', alignItems: 'center', gap: '0.4rem',
+                background: 'transparent', border: '1px solid var(--border-soft)',
+                padding: '0.4rem 0.8rem', borderRadius: '6px', cursor: 'pointer',
+                color: 'var(--nav-navy)', fontWeight: '600', fontSize: '0.85rem'
+              }}
+            >
+              <Globe size={16} /> {t.langButton}
+            </button>
           </div>
         </div>
       </div>
@@ -192,17 +213,17 @@ function PortalHeader({ compact }) {
 }
 
 const LandingPage = ({ onStart }) => {
+  const { t } = useContext(LangContext);
   return (
     <div className="landing-root fade-in" id="accueil">
       <PortalHeader compact={false} />
 
       <div className="landing-main">
         <section className="hero">
-          <p className="hero-kicker">خدمات رقمية</p>
-          <h1 className="hero-title-main">مساندة استشارية لمدونة الشغل المغربية</h1>
+          <p className="hero-kicker">{t.heroKicker}</p>
+          <h1 className="hero-title-main">{t.heroTitle}</h1>
           <p className="hero-lead">
-            تستند الإجابات إلى مقتطفات من المواد المتعلقة بطلبكم، وفق آلية بحث دلالي في الوثائق الممركزة؛
-            المعاينة تجري فقط وفق المراجع الواردة، مع إقراركم بمراجعتكم للجهة المعنية والنشر الرسمي.
+            {t.heroLead}
           </p>
 
           <div className="landing-cards" id="services">
@@ -210,10 +231,10 @@ const LandingPage = ({ onStart }) => {
               <div className="svc-icon-wrap">
                 <BookOpen size={26} aria-hidden />
               </div>
-              <h3>المرجعية النصّية</h3>
-              <p>تلخيص مهيكل يعتمد المواد المعروضة أثناء الاسترجاع من قاعدة النصوص المرجعية للمساعد.</p>
+              <h3>{t.svc1Title}</h3>
+              <p>{t.svc1Desc}</p>
               <button type="button" className="svc-btn" onClick={() => scrollToId('guide')}>
-                تعرّف على آلية العمل <ChevronLeft size={14} aria-hidden />
+                {t.svc1Btn} <ChevronLeft size={14} aria-hidden />
               </button>
             </div>
 
@@ -221,8 +242,8 @@ const LandingPage = ({ onStart }) => {
               <div className="svc-icon-wrap">
                 <Landmark size={26} aria-hidden />
               </div>
-              <h3>البورتالات الوطنية</h3>
-              <p>الربط المباشر ببوابة محاكم وموقع وزارة العدل للخدمات القضائية والإدارية الرسمية.</p>
+              <h3>{t.svc2Title}</h3>
+              <p>{t.svc2Desc}</p>
               <button
                 type="button"
                 className="svc-btn"
@@ -230,7 +251,7 @@ const LandingPage = ({ onStart }) => {
                   window.open(LINK_MAHAKIM, '_blank', 'noopener,noreferrer');
                 }}
               >
-                فتح بوابة محاكم <ChevronLeft size={14} aria-hidden />
+                {t.svc2Btn} <ChevronLeft size={14} aria-hidden />
               </button>
             </div>
 
@@ -238,53 +259,38 @@ const LandingPage = ({ onStart }) => {
               <div className="svc-icon-wrap">
                 <FileSearch size={26} aria-hidden />
               </div>
-              <h3>التحقّق والمسؤولية</h3>
-              <p>المواءمة مع مدونة الشغل المنشورة في الجريدة الرسمية قبل أي قرار مهني أو تنفيذي.</p>
+              <h3>{t.svc3Title}</h3>
+              <p>{t.svc3Desc}</p>
               <button type="button" className="svc-btn" onClick={() => scrollToId('avis-juridique')}>
-                قراءة الإشعار القانوني <ChevronLeft size={14} aria-hidden />
+                {t.svc3Btn} <ChevronLeft size={14} aria-hidden />
               </button>
             </div>
           </div>
 
           <button type="button" className="hero-cta" onClick={onStart}>
-            الدخول إلى منصّة الاستشارة
+            {t.enterChat}
           </button>
 
           <section className="guide-section" id="guide" aria-labelledby="guide-heading">
-            <h2 id="guide-heading">دليل المستعمل — مساعد مدونة الشغل</h2>
+            <h2 id="guide-heading">{t.guideTitle}</h2>
             <ol>
-              <li>
-                اضغطوا «الدخول إلى منصّة الاستشارة» أو زِر زر «فتح المحادثة» أسفل هذه الخطوات بعد تنصيب الخادم المحلي.
-              </li>
-              <li>
-                صاغوا سؤالكم بوضوح (يمكن بالعربية أو الفرنسية أو الإنجليزية؛ ستكون الإجابة بالعربية الفصحى وفق إعدادات النظام).
-              </li>
-              <li>
-                انتظروا ظهور الأقسام الثلاثة: الإجابة، التوضيح، الأساس القانوني مع أرقام المواد المقتبسة من القاعدة.
-              </li>
-              <li>
-                راجعوا دائماً النصوص على الجريدة الرسمية أو مع مختص قانوني قبل اتخاذ أي إجراء.
-              </li>
-              <li>
-                للتتبع القضائي والخدمات الحكومية استعملوا روابط «بوابة محاكم» و«وزارة العدل» في الشريط العلوي.
-              </li>
+              <li>{t.guide1}</li>
+              <li>{t.guide2}</li>
+              <li>{t.guide3}</li>
+              <li>{t.guide4}</li>
+              <li>{t.guide5}</li>
             </ol>
             <button type="button" className="hero-cta" style={{ marginTop: '1.25rem' }} onClick={onStart}>
-              فتح المحادثة الآن
+              {t.openChat}
             </button>
           </section>
         </section>
 
         <footer className="landing-footer" id="avis-juridique">
           <div className="landing-footer__inner">
-            <h4>إشعار قانوني وإخلاء مسؤولية</h4>
-            <p>
-              هذه الواجهة أداة إرشادية تعتمد التوليف الآلي؛ لا تغني عن استشارة محام أو مستشار قانوني مؤهل، ولا عن
-              إجراء أو مرسوم صادر عن جهة مختصّة بالوزارة أو القضاء أو الإدارات ذات الصلة بالشغل.
-            </p>
-            <p>
-              الأجوبة المركّبة آلياً تجب مطابقتها مع النشر الرسمي في الجريدة الرسمية؛ أي قرار دون ذلك يبقى على مسؤولية المستخدم.
-            </p>
+            <h4>{t.disclaimerTitle}</h4>
+            <p>{t.disclaimer1}</p>
+            <p>{t.disclaimer2}</p>
           </div>
         </footer>
       </div>
@@ -293,19 +299,21 @@ const LandingPage = ({ onStart }) => {
 };
 
 const ChatbotUI = ({ onBack }) => {
-  const [messages, setMessages] = useState([
-    {
-      id: 1,
-      role: 'assistant',
-      content:
-        '**الإجابة :** مرحبا، يعمل المُساند على استجلاء المواد المتعلقة بمدونة الشغل وفق الأسئلة الموجهة له.\n\n' +
-        '**التوضيح :** يمكنكم صياغة الاستفسار باللسان الذي تريدونه؛ ستُنسَج الإجابة بالعربية الفصحى المهنية مع الحفاظ على أرقام المواد المرجعة.\n\n' +
-        '**الأساس القانوني :** تأتي المواد المعروضة من قاعدة النصوص المدمجة في النظام قبل التوليف.',
-    },
-  ]);
+  const { t } = useContext(LangContext);
+  const [messages, setMessages] = useState([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef(null);
+
+  useEffect(() => {
+    if (messages.length === 0 && t) {
+      setMessages([{
+        id: 1,
+        role: 'assistant',
+        content: t.initialChat
+      }]);
+    }
+  }, [t]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -333,8 +341,7 @@ const ChatbotUI = ({ onBack }) => {
         {
           id: Date.now(),
           role: 'assistant',
-          content:
-            '**الإجابة :** تعذّر الوصول إلى خادّم المعالجة.\n\n**التوضيح :** تأكّدوا من تشغيل واجهة FastAPI على العنوان 127.0.0.1:8000 وفحص شبكتكم.\n\n**الأساس القانوني :** لا ينطبق.',
+          content: t.errorChat,
         },
       ]);
     } finally {
@@ -349,25 +356,25 @@ const ChatbotUI = ({ onBack }) => {
       <div className="chat-container">
         <aside className="chat-sidebar">
           <div className="chat-sidebar-header">
-            <p className="chat-sidebar-title">معلومات خدمية</p>
-            <p className="chat-sidebar-sub">قطاع العدالة الرقمية · مدونة الشغل · استرجاع دلالي وتوليف نصي</p>
+            <p className="chat-sidebar-title">{t.chatInfo}</p>
+            <p className="chat-sidebar-sub">{t.chatInfoSub}</p>
           </div>
           <div className="chat-sidebar-content">
             <div className="sidebar-links">
               <a className="sidebar-link-out" href={LINK_MAHAKIM} target="_blank" rel="noopener noreferrer">
-                بوابة محاكم <ExternalLink size={13} aria-hidden />
+                {t.track} <ExternalLink size={13} aria-hidden />
               </a>
               <a className="sidebar-link-out" href={LINK_JUSTICE_MIN} target="_blank" rel="noopener noreferrer">
-                موقع وزارة العدل <ExternalLink size={13} aria-hidden />
+                {t.contact} <ExternalLink size={13} aria-hidden />
               </a>
             </div>
             <button type="button" className="btn-link-back" onClick={onBack}>
-              <ArrowRight size={17} aria-hidden /> العودة لاستقبال المنصّة
+              <ArrowRight size={17} aria-hidden /> {t.backHome}
             </button>
             <div className="sidebar-notice">
-              <strong>تنبيه</strong>
+              <strong>{t.noticeTitle}</strong>
               <br />
-              تُنشَأ المقاطع باستخدام نموذج لغوي؛ التثبُّت إلزامي أمام المراجع المعتمدة والجريدة الرسمية قبل أي قرار مهني.
+              {t.noticeBody}
             </div>
           </div>
         </aside>
@@ -375,16 +382,14 @@ const ChatbotUI = ({ onBack }) => {
         <main className="chat-main">
           <header className="chat-header">
             <div>
-              <p className="chat-header-title">جلسة استشارية فورية — مدونة الشغل</p>
-              <p className="chat-header-detail">
-                عرض المواد المستخلصة وفق استفساركم؛ السجل الحالي يُحفظ في المتصفح لهذه الجولة فقط وليس أرشيفاً إدارياً.
-              </p>
+              <p className="chat-header-title">{t.chatHeader}</p>
+              <p className="chat-header-detail">{t.chatHeaderSub}</p>
             </div>
           </header>
 
           <div className="chat-messages">
             <button type="button" className="btn-link-back hide-on-desktop" onClick={onBack}>
-              <ArrowRight size={17} aria-hidden /> عودة
+              <ArrowRight size={17} aria-hidden /> {t.backHomeMobile}
             </button>
             {messages.map((msg) => {
               const rtl = isMostlyArabic(msg.content);
@@ -422,26 +427,24 @@ const ChatbotUI = ({ onBack }) => {
                 <div className="message-avatar" aria-hidden="true">
                   <Scale size={18} strokeWidth={2} />
                 </div>
-                <div className="message-bubble assistant-reply loading-bubble">جاري التحليل والمراجعة الموضوعية…</div>
+                <div className="message-bubble assistant-reply loading-bubble">{t.loading}</div>
               </div>
             )}
             <div ref={messagesEndRef} />
           </div>
 
           <div className="chat-input-container">
-            <p className="chat-disclaimer-inline">
-              أداة إرشادية لا تمثل موقفاً إدارياً ولا حكماً قضائياً؛ التحقق من النشر الرسمي في الجريدة الرسمية واجب قبل أي قرار.
-            </p>
+            <p className="chat-disclaimer-inline">{t.chatDisclaimer}</p>
             <div className="chat-input-shell">
               <label className="chat-input-label" htmlFor="chat-query">
-                صياغة الاستفسار
+                {t.chatLabel}
               </label>
-              <p className="chat-input-hint">اكتبوا سؤالكم بوضوح؛ يمكن استخدام العربية أو الفرنسية أو الإنجليزية. المفتاح Enter يرسل، Shift+Enter سطر جديد.</p>
+              <p className="chat-input-hint">{t.chatHint}</p>
               <div className="chat-input-wrapper">
                 <textarea
                   id="chat-query"
                   className="chat-input"
-                  placeholder="مثال: ما مدة إشعار فسخ عقد العمل؟ أو ما حقوقي إذا تعرضتُ لمضايقة في العمل؟"
+                  placeholder={t.chatPlaceholder}
                   rows={3}
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
@@ -457,9 +460,9 @@ const ChatbotUI = ({ onBack }) => {
                   className="chat-send-btn"
                   onClick={handleSend}
                   disabled={isLoading || !inputValue.trim()}
-                  aria-label="إرسال السؤال"
+                  aria-label={t.send}
                 >
-                  <span>إرسال</span>
+                  <span>{t.send}</span>
                   <Send size={18} aria-hidden />
                 </button>
               </div>
@@ -473,9 +476,22 @@ const ChatbotUI = ({ onBack }) => {
 
 export default function App() {
   const [view, setView] = useState('landing');
-  return view === 'landing' ? (
-    <LandingPage onStart={() => setView('chat')} />
-  ) : (
-    <ChatbotUI onBack={() => setView('landing')} />
+  const [lang, setLang] = useState('ar');
+
+  useEffect(() => {
+    document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+    document.documentElement.lang = lang;
+  }, [lang]);
+
+  const t = T[lang];
+
+  return (
+    <LangContext.Provider value={{ lang, setLang, t }}>
+      {view === 'landing' ? (
+        <LandingPage onStart={() => setView('chat')} />
+      ) : (
+        <ChatbotUI onBack={() => setView('landing')} />
+      )}
+    </LangContext.Provider>
   );
 }
